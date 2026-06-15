@@ -44,6 +44,7 @@ let nextGroupId = 4;
 let nextTopicId = 11;
 let nextCommentId = 6;
 let nextUserId = 9;
+let nextApplicationId = 1;
 
 const avatars = ['👨', '👩', '🧑', '👨‍💼', '👩‍💼', '🧑‍💻', '👨‍🎨', '👩‍🔬', '👨‍🍳', '👩‍🎤', '🧑‍🎨', '👨‍🏫', '👩‍💻', '🧑‍✈️'];
 
@@ -116,6 +117,8 @@ const comments = [
 ];
 
 const checkins = {};
+
+const joinApplications = [];
 (function initCheckins() {
   const today = new Date('2026-06-15');
   groups.forEach(group => {
@@ -275,6 +278,8 @@ app.get('/api/groups', authMiddleware, (req, res) => {
     recentActivity: getGroupRecentActivity(g.id),
     activityScore: getGroupActivityScore(g.id),
     todayCheckins: (checkins[g.id] && checkins[g.id][formatDate()]) ? checkins[g.id][formatDate()].length : 0,
+    pendingCount: joinApplications.filter(a => a.groupId === g.id && a.status === 'pending').length,
+    topicCount: topics.filter(t => t.groupId === g.id).length,
   }));
   res.json(enriched);
 });
@@ -283,11 +288,16 @@ app.get('/api/groups/:id', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
   const group = groups.find(g => g.id === id);
   if (!group) return res.status(404).json({ error: '小组不存在' });
+  const userId = req.user.id;
+  const userApplication = joinApplications.find(a => a.groupId === id && a.userId === userId && a.status === 'pending');
   res.json({
     ...group,
     memberCount: group.members.length,
     members: group.members.map(uid => getUserById(uid)),
     activityScore: getGroupActivityScore(id),
+    pendingCount: joinApplications.filter(a => a.groupId === id && a.status === 'pending').length,
+    hasPendingApplication: !!userApplication,
+    topicCount: topics.filter(t => t.groupId === id).length,
   });
 });
 
@@ -333,7 +343,19 @@ app.post('/api/groups/:id/join', authMiddleware, (req, res) => {
     return res.json({ success: true, message: '已经是小组成员', group });
   }
   if (group.permission === 'approval') {
-    return res.json({ success: true, message: '申请已提交，等待审核', group });
+    const existing = joinApplications.find(a => a.groupId === id && a.userId === userId && a.status === 'pending');
+    if (existing) {
+      return res.json({ success: true, message: '申请已提交，等待审核', pending: true });
+    }
+    const application = {
+      id: nextApplicationId++,
+      groupId: id,
+      userId,
+      status: 'pending',
+      createdAt: formatDateTime(),
+    };
+    joinApplications.push(application);
+    return res.json({ success: true, message: '申请已提交，等待审核', pending: true });
   }
   group.members.push(userId);
   res.json({ success: true, message: '加入成功', group });
@@ -469,6 +491,59 @@ app.get('/api/ranking/activity', authMiddleware, adminMiddleware, (req, res) => 
     topicCount: topics.filter(t => t.groupId === g.id).length,
   })).sort((a, b) => b.score - a.score);
   res.json(ranking);
+});
+
+app.get('/api/applications', authMiddleware, adminMiddleware, (req, res) => {
+  const pending = joinApplications
+    .filter(a => a.status === 'pending')
+    .map(a => ({
+      ...a,
+      user: getUserById(a.userId),
+      group: groups.find(g => g.id === a.groupId) || null,
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  res.json(pending);
+});
+
+app.put('/api/applications/:id/approve', authMiddleware, adminMiddleware, (req, res) => {
+  const id = parseInt(req.params.id);
+  const application = joinApplications.find(a => a.id === id);
+  if (!application) return res.status(404).json({ error: '申请不存在' });
+  if (application.status !== 'pending') return res.status(400).json({ error: '该申请已处理' });
+
+  application.status = 'approved';
+  const group = groups.find(g => g.id === application.groupId);
+  if (group && !group.members.includes(application.userId)) {
+    group.members.push(application.userId);
+  }
+
+  res.json({
+    success: true,
+    message: '已通过申请',
+    application: {
+      ...application,
+      user: getUserById(application.userId),
+      group: group || null,
+    },
+  });
+});
+
+app.put('/api/applications/:id/reject', authMiddleware, adminMiddleware, (req, res) => {
+  const id = parseInt(req.params.id);
+  const application = joinApplications.find(a => a.id === id);
+  if (!application) return res.status(404).json({ error: '申请不存在' });
+  if (application.status !== 'pending') return res.status(400).json({ error: '该申请已处理' });
+
+  application.status = 'rejected';
+
+  res.json({
+    success: true,
+    message: '已拒绝申请',
+    application: {
+      ...application,
+      user: getUserById(application.userId),
+    },
+  });
 });
 
 app.listen(PORT, () => {

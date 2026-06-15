@@ -26,8 +26,8 @@ function GroupCard({ group, onClick }) {
           <div className="stat-item">
             <span className="stat-icon">✍️</span>
             <div>
-              <span className="stat-value">{group.recentActivity.length}</span>
-              <span className="stat-label"> 动态</span>
+              <span className="stat-value">{group.topicCount}</span>
+              <span className="stat-label"> 话题</span>
             </div>
           </div>
           <div className="stat-item">

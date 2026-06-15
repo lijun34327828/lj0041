@@ -231,6 +231,7 @@ export default function GroupDetail() {
   }
 
   const isMember = group.members.includes(currentUser.id) || group.members.some(m => m.id === currentUser.id);
+  const hasPendingApplication = group.hasPendingApplication;
 
   return (
     <div>
@@ -265,6 +266,13 @@ export default function GroupDetail() {
                         {checkedInToday ? '✅ 今日已打卡' : '📅 立即打卡'}
                       </button>
                       <span className="badge badge-open">👥 已加入</span>
+                    </>
+                  ) : hasPendingApplication ? (
+                    <>
+                      <button className="btn btn-outline" disabled>
+                        ⏳ 审核中
+                      </button>
+                      <span className="badge badge-pending">申请待审核</span>
                     </>
                   ) : (
                     <button className="btn btn-primary" onClick={handleJoin}>
@@ -339,7 +347,7 @@ export default function GroupDetail() {
                 <div className="stat-box-label">成员数</div>
               </div>
               <div className="stat-box">
-                <div className="stat-box-num">{topics.length}</div>
+                <div className="stat-box-num">{group.topicCount}</div>
                 <div className="stat-box-label">话题数</div>
               </div>
               <div className="stat-box">

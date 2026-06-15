@@ -16,6 +16,7 @@ export default function Admin() {
 
   const [groups, setGroups] = useState([]);
   const [ranking, setRanking] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
@@ -38,9 +39,10 @@ export default function Admin() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [g, r] = await Promise.all([api.getGroups(), api.getRanking()]);
+      const [g, r, a] = await Promise.all([api.getGroups(), api.getRanking(), api.getApplications()]);
       setGroups(g);
       setRanking(r);
+      setApplications(a);
     } catch (e) {
       showToast('加载失败', 'error');
     } finally {
@@ -120,6 +122,26 @@ export default function Admin() {
     }
   };
 
+  const handleApprove = async (appId) => {
+    try {
+      await api.approveApplication(appId);
+      showToast('已通过申请');
+      loadAll();
+    } catch (e) {
+      showToast(e.message || '操作失败', 'error');
+    }
+  };
+
+  const handleReject = async (appId) => {
+    try {
+      await api.rejectApplication(appId);
+      showToast('已拒绝申请');
+      loadAll();
+    } catch (e) {
+      showToast(e.message || '操作失败', 'error');
+    }
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -137,6 +159,37 @@ export default function Admin() {
       ) : (
         <div className="admin-layout">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {applications.length > 0 && (
+              <div className="admin-card">
+                <div className="section-header" style={{ marginBottom: '20px' }}>
+                  <span className="section-title">🔔 待审核入组申请 ({applications.length})</span>
+                </div>
+                <div className="applications-list">
+                  {applications.map(app => (
+                    <div key={app.id} className="application-item">
+                      <div className="application-user">
+                        <div className="avatar">{app.user.avatar}</div>
+                        <div className="application-user-info">
+                          <div className="application-username">{app.user.name}</div>
+                          <div className="application-meta">
+                            申请加入 <span className="application-group-name" style={{ color: app.group?.color || '#6366f1' }}>{app.group?.cover} {app.group?.name}</span> · {app.createdAt}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="application-actions">
+                        <button className="btn btn-primary btn-sm" onClick={() => handleApprove(app.id)}>
+                          ✓ 通过
+                        </button>
+                        <button className="btn btn-outline btn-sm btn-reject" onClick={() => handleReject(app.id)}>
+                          ✗ 拒绝
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="admin-card">
               <div className="section-header" style={{ marginBottom: '20px' }}>
                 <span className="section-title">📋 小组管理</span>
@@ -156,9 +209,16 @@ export default function Admin() {
                             {group.permission === 'open' ? '自由加入' : '审核加入'}
                           </span>
                         </span>
+                        {group.pendingCount > 0 && (
+                          <span style={{ marginLeft: '8px' }}>
+                            <span className="badge badge-pending-count">
+                              待审核 {group.pendingCount}
+                            </span>
+                          </span>
+                        )}
                       </div>
                       <div className="admin-group-meta">
-                        👥 {group.memberCount} 成员 · 📝 {group.recentActivity.length} 动态 · 📊 {group.activityScore} 活跃分
+                        👥 {group.memberCount} 成员 · ✍️ {group.topicCount} 话题 · 📊 {group.activityScore} 活跃分
                       </div>
                     </div>
                     <div className="admin-group-actions">
@@ -235,7 +295,7 @@ export default function Admin() {
                   <div className="ranking-info">
                     <div className="ranking-name">{item.name}</div>
                     <div className="ranking-meta">
-                      👥 {item.memberCount} · ✍️ {item.topicCount}
+                      👥 {item.memberCount} · ✍️ {item.topicCount} 话题
                     </div>
                   </div>
                   <div className="ranking-score">

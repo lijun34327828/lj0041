@@ -65,6 +65,10 @@ export const api = {
   getRanking: () => request('/api/ranking/activity'),
   getUsers: () => request('/api/users'),
 
+  getApplications: () => request('/api/applications'),
+  approveApplication: (id) => request(`/api/applications/${id}/approve`, { method: 'PUT' }),
+  rejectApplication: (id) => request(`/api/applications/${id}/reject`, { method: 'PUT' }),
+
   setToken,
   getToken,
   clearAuth,

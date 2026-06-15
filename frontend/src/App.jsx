@@ -7,7 +7,11 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import { api } from './api.js';
 
-const ToastContext = createContext();
+const ToastContext = createContext({
+  showToast: () => {},
+  currentUser: null,
+  loading: true,
+});
 
 export function useToast() {
   return useContext(ToastContext);
