@@ -1,0 +1,392 @@
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
+const PORT = 8761;
+
+app.use(cors());
+app.use(express.json());
+
+let nextGroupId = 4;
+let nextTopicId = 11;
+let nextCommentId = 6;
+let nextUserId = 101;
+
+const users = [
+  { id: 1, name: '张三', avatar: '👨' },
+  { id: 2, name: '李四', avatar: '👩' },
+  { id: 3, name: '王五', avatar: '🧑' },
+  { id: 4, name: '赵六', avatar: '👨‍💼' },
+  { id: 5, name: '陈七', avatar: '👩‍💼' },
+  { id: 6, name: '周八', avatar: '🧑‍💻' },
+  { id: 7, name: '吴九', avatar: '👨‍🎨' },
+  { id: 8, name: '郑十', avatar: '👩‍🔬' },
+];
+
+const groups = [
+  {
+    id: 1,
+    name: '读书分享会',
+    description: '每月共读一本好书，分享阅读感悟',
+    theme: '本月主题：《百年孤独》深度解读',
+    cover: '📚',
+    color: '#6366f1',
+    permission: 'open',
+    members: [1, 2, 3, 4, 5],
+    createdAt: '2026-01-15',
+  },
+  {
+    id: 2,
+    name: '健身打卡团',
+    description: '每日运动打卡，互相监督激励',
+    theme: '春季减脂挑战赛进行中！',
+    cover: '💪',
+    color: '#f43f5e',
+    permission: 'open',
+    members: [1, 3, 5, 6, 7, 8],
+    createdAt: '2026-02-20',
+  },
+  {
+    id: 3,
+    name: '摄影爱好者',
+    description: '分享摄影作品，交流拍摄技巧',
+    theme: '主题：城市夜景人像',
+    cover: '📷',
+    color: '#10b981',
+    permission: 'approval',
+    members: [2, 4, 6, 8],
+    createdAt: '2026-03-10',
+  },
+];
+
+const topics = [
+  { id: 1, groupId: 1, userId: 1, title: '读完《百年孤独》第三章的一些感想', content: '马尔克斯的魔幻现实主义真的太震撼了，布恩迪亚家族的命运让人唏嘘...', likes: [2, 3, 4], pinned: true, createdAt: '2026-06-10 09:30', commentCount: 3 },
+  { id: 2, groupId: 1, userId: 2, title: '推荐几本类似风格的拉美文学', content: '大家有没有其他拉美文学作品推荐？', likes: [1, 5], pinned: false, createdAt: '2026-06-12 14:20', commentCount: 2 },
+  { id: 3, groupId: 1, userId: 3, title: '线下读书会报名开始啦', content: '本周五晚7点，一起聊聊书中最打动你的段落~', likes: [1, 2, 4, 5], pinned: true, createdAt: '2026-06-13 10:00', commentCount: 5 },
+  { id: 4, groupId: 2, userId: 1, title: 'Day 30 打卡完成！', content: '坚持一个月了，体脂降了2%，继续加油！', likes: [3, 5, 6, 7, 8], pinned: false, createdAt: '2026-06-14 07:00', commentCount: 4 },
+  { id: 5, groupId: 2, userId: 6, title: '求推荐靠谱的蛋白粉品牌', content: '最近训练量加大，想补充点蛋白质', likes: [7], pinned: false, createdAt: '2026-06-14 12:30', commentCount: 3 },
+  { id: 6, groupId: 2, userId: 7, title: '本周六公园慢跑约起~', content: '早上6点滨江公园，5公里轻松跑', likes: [1, 3, 5, 8], pinned: true, createdAt: '2026-06-13 18:00', commentCount: 2 },
+  { id: 7, groupId: 3, userId: 2, title: '外滩夜景作品分享', content: '昨晚去外滩拍的，大家觉得怎么样？', likes: [4, 6, 8, 1], pinned: true, createdAt: '2026-06-11 22:00', commentCount: 6 },
+  { id: 8, groupId: 3, userId: 4, title: '新手求问：夜景如何避免手抖', content: 'ISO已经很高了还是糊...', likes: [2, 6], pinned: false, createdAt: '2026-06-12 15:40', commentCount: 3 },
+  { id: 9, groupId: 3, userId: 6, title: '入手新镜头，开心！', content: '终于入了心心念念的35mm f1.4', likes: [2, 4, 8, 1, 3], pinned: false, createdAt: '2026-06-14 16:20', commentCount: 2 },
+  { id: 10, groupId: 1, userId: 4, title: '马尔克斯的写作风格分析', content: '从叙事结构看魔幻现实主义的魅力...', likes: [1, 2, 3], pinned: false, createdAt: '2026-06-15 08:15', commentCount: 1 },
+];
+
+const comments = [
+  { id: 1, topicId: 1, userId: 2, content: '同感！尤其是奥雷里亚诺上校的部分', createdAt: '2026-06-10 10:15' },
+  { id: 2, topicId: 1, userId: 3, content: '家族的循环命运真的太有宿命感了', createdAt: '2026-06-10 11:00' },
+  { id: 3, topicId: 1, userId: 4, content: '准备二刷了，第一遍没太看懂', createdAt: '2026-06-10 14:30' },
+  { id: 4, topicId: 4, userId: 3, content: '太强了！向你学习', createdAt: '2026-06-14 07:30' },
+  { id: 5, topicId: 7, userId: 6, content: '构图太棒了！用的什么参数？', createdAt: '2026-06-11 22:30' },
+];
+
+const checkins = {};
+(function initCheckins() {
+  const today = new Date('2026-06-15');
+  groups.forEach(group => {
+    checkins[group.id] = {};
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      checkins[group.id][dateStr] = [];
+      const checkinCount = Math.floor(Math.random() * group.members.length);
+      for (let j = 0; j < checkinCount; j++) {
+        const uid = group.members[Math.floor(Math.random() * group.members.length)];
+        if (!checkins[group.id][dateStr].includes(uid)) {
+          checkins[group.id][dateStr].push(uid);
+        }
+      }
+    }
+  });
+})();
+
+function formatDateTime() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${d} ${hh}:${mm}`;
+}
+
+function formatDate() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getUserById(id) {
+  return users.find(u => u.id === id) || { id, name: '用户' + id, avatar: '👤' };
+}
+
+function enrichTopic(topic) {
+  return {
+    ...topic,
+    user: getUserById(topic.userId),
+    likeCount: topic.likes.length,
+  };
+}
+
+function enrichComment(comment) {
+  return {
+    ...comment,
+    user: getUserById(comment.userId),
+  };
+}
+
+function getGroupRecentActivity(groupId) {
+  const groupTopics = topics.filter(t => t.groupId === groupId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const groupComments = comments.filter(c => {
+    const t = topics.find(tt => tt.id === c.topicId);
+    return t && t.groupId === groupId;
+  }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const all = [];
+  groupTopics.slice(0, 3).forEach(t => all.push({ type: 'topic', id: t.id, title: t.title, createdAt: t.createdAt, user: getUserById(t.userId) }));
+  groupComments.slice(0, 2).forEach(c => {
+    const t = topics.find(tt => tt.id === c.topicId);
+    if (t) all.push({ type: 'comment', id: c.id, content: c.content.substring(0, 30), createdAt: c.createdAt, user: getUserById(c.userId), topicTitle: t.title });
+  });
+  return all.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+}
+
+function getGroupActivityScore(groupId) {
+  const now = Date.now();
+  const groupTopics = topics.filter(t => t.groupId === groupId);
+  let score = 0;
+  groupTopics.forEach(t => {
+    score += 10;
+    score += t.likes.length * 2;
+    score += (t.commentCount || 0) * 3;
+  });
+  const today = formatDate();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  if (checkins[groupId]) {
+    score += (checkins[groupId][today] || []).length * 5;
+    score += (checkins[groupId][yesterdayStr] || []).length * 2;
+  }
+  score += groups.find(g => g.id === groupId).members.length * 1;
+  return score;
+}
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', port: PORT, time: formatDateTime() });
+});
+
+app.get('/api/users', (req, res) => {
+  res.json(users);
+});
+
+app.get('/api/groups', (req, res) => {
+  const enriched = groups.map(g => ({
+    ...g,
+    memberCount: g.members.length,
+    recentActivity: getGroupRecentActivity(g.id),
+    activityScore: getGroupActivityScore(g.id),
+    todayCheckins: (checkins[g.id] && checkins[g.id][formatDate()]) ? checkins[g.id][formatDate()].length : 0,
+  }));
+  res.json(enriched);
+});
+
+app.get('/api/groups/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const group = groups.find(g => g.id === id);
+  if (!group) return res.status(404).json({ error: '小组不存在' });
+  res.json({
+    ...group,
+    memberCount: group.members.length,
+    members: group.members.map(uid => getUserById(uid)),
+    activityScore: getGroupActivityScore(id),
+  });
+});
+
+app.post('/api/groups', (req, res) => {
+  const { name, description, theme, cover, color, permission } = req.body;
+  if (!name) return res.status(400).json({ error: '小组名称不能为空' });
+  const newGroup = {
+    id: nextGroupId++,
+    name,
+    description: description || '',
+    theme: theme || '',
+    cover: cover || '🎯',
+    color: color || '#6366f1',
+    permission: permission || 'open',
+    members: [1],
+    createdAt: formatDate(),
+  };
+  groups.push(newGroup);
+  checkins[newGroup.id] = {};
+  res.json(newGroup);
+});
+
+app.put('/api/groups/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const group = groups.find(g => g.id === id);
+  if (!group) return res.status(404).json({ error: '小组不存在' });
+  const { name, description, theme, cover, color, permission } = req.body;
+  if (name !== undefined) group.name = name;
+  if (description !== undefined) group.description = description;
+  if (theme !== undefined) group.theme = theme;
+  if (cover !== undefined) group.cover = cover;
+  if (color !== undefined) group.color = color;
+  if (permission !== undefined) group.permission = permission;
+  res.json(group);
+});
+
+app.post('/api/groups/:id/join', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { userId } = req.body;
+  const group = groups.find(g => g.id === id);
+  if (!group) return res.status(404).json({ error: '小组不存在' });
+  if (!userId) return res.status(400).json({ error: '缺少用户ID' });
+  if (group.members.includes(userId)) {
+    return res.json({ success: true, message: '已经是小组成员', group });
+  }
+  if (group.permission === 'approval') {
+    return res.json({ success: true, message: '申请已提交，等待审核', group });
+  }
+  group.members.push(userId);
+  res.json({ success: true, message: '加入成功', group });
+});
+
+app.get('/api/groups/:id/topics', (req, res) => {
+  const id = parseInt(req.params.id);
+  let groupTopics = topics.filter(t => t.groupId === id);
+  groupTopics.sort((a, b) => {
+    if (a.pinned !== b.pinned) return b.pinned ? 1 : -1;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+  res.json(groupTopics.map(enrichTopic));
+});
+
+app.post('/api/groups/:id/topics', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { userId, title, content } = req.body;
+  if (!userId || !title || !content) {
+    return res.status(400).json({ error: '缺少必要参数' });
+  }
+  const newTopic = {
+    id: nextTopicId++,
+    groupId: id,
+    userId,
+    title,
+    content,
+    likes: [],
+    pinned: false,
+    createdAt: formatDateTime(),
+    commentCount: 0,
+  };
+  topics.push(newTopic);
+  res.json(enrichTopic(newTopic));
+});
+
+app.put('/api/topics/:id/pin', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { pinned } = req.body;
+  const topic = topics.find(t => t.id === id);
+  if (!topic) return res.status(404).json({ error: '话题不存在' });
+  topic.pinned = pinned !== undefined ? pinned : !topic.pinned;
+  res.json(enrichTopic(topic));
+});
+
+app.post('/api/topics/:id/like', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { userId } = req.body;
+  const topic = topics.find(t => t.id === id);
+  if (!topic) return res.status(404).json({ error: '话题不存在' });
+  if (!userId) return res.status(400).json({ error: '缺少用户ID' });
+  const idx = topic.likes.indexOf(userId);
+  if (idx > -1) {
+    topic.likes.splice(idx, 1);
+  } else {
+    topic.likes.push(userId);
+  }
+  res.json(enrichTopic(topic));
+});
+
+app.get('/api/topics/:id/comments', (req, res) => {
+  const id = parseInt(req.params.id);
+  const topicComments = comments.filter(c => c.topicId === id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  res.json(topicComments.map(enrichComment));
+});
+
+app.post('/api/topics/:id/comments', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { userId, content } = req.body;
+  if (!userId || !content) {
+    return res.status(400).json({ error: '缺少必要参数' });
+  }
+  const newComment = {
+    id: nextCommentId++,
+    topicId: id,
+    userId,
+    content,
+    createdAt: formatDateTime(),
+  };
+  comments.push(newComment);
+  const topic = topics.find(t => t.id === id);
+  if (topic) topic.commentCount = (topic.commentCount || 0) + 1;
+  res.json(enrichComment(newComment));
+});
+
+app.get('/api/groups/:id/checkins', (req, res) => {
+  const id = parseInt(req.params.id);
+  res.json(checkins[id] || {});
+});
+
+app.post('/api/groups/:id/checkin', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: '缺少用户ID' });
+  const today = formatDate();
+  if (!checkins[id]) checkins[id] = {};
+  if (!checkins[id][today]) checkins[id][today] = [];
+  if (checkins[id][today].includes(userId)) {
+    return res.json({ success: false, message: '今日已打卡', checkins: checkins[id] });
+  }
+  checkins[id][today].push(userId);
+  res.json({ success: true, message: '打卡成功', checkins: checkins[id], todayCount: checkins[id][today].length });
+});
+
+app.get('/api/groups/:id/checkin-stats', (req, res) => {
+  const id = parseInt(req.params.id);
+  const data = checkins[id] || {};
+  const totalDays = Object.keys(data).length;
+  const totalCheckins = Object.values(data).reduce((sum, arr) => sum + arr.length, 0);
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    if (data[dateStr] && data[dateStr].length > 0) {
+      streak++;
+    } else if (i > 0) {
+      break;
+    }
+  }
+  res.json({ totalDays, totalCheckins, streak, data });
+});
+
+app.get('/api/ranking/activity', (req, res) => {
+  const ranking = groups.map(g => ({
+    id: g.id,
+    name: g.name,
+    cover: g.cover,
+    color: g.color,
+    memberCount: g.members.length,
+    score: getGroupActivityScore(g.id),
+    topicCount: topics.filter(t => t.groupId === g.id).length,
+  })).sort((a, b) => b.score - a.score);
+  res.json(ranking);
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 兴趣小组后端服务已启动: http://localhost:${PORT}`);
+  console.log(`📡 健康检查: http://localhost:${PORT}/api/health`);
+});
