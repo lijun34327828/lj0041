@@ -95,7 +95,7 @@ export default function Admin() {
       setShowForm(false);
       loadAll();
     } catch (e) {
-      showToast(editingGroup ? '更新失败' : '创建失败', 'error');
+      showToast(e.message || (editingGroup ? '更新失败' : '创建失败'), 'error');
     }
     setSubmitting(false);
   };

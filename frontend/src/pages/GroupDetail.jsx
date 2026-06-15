@@ -26,7 +26,7 @@ function TopicCard({ topic, onLike, onComment, onPin, currentUser, showPin }) {
     if (!newComment.trim()) return;
     setSubmittingComment(true);
     try {
-      await api.createComment(topic.id, { userId: currentUser.id, content: newComment.trim() });
+      await api.createComment(topic.id, { content: newComment.trim() });
       setNewComment('');
       await loadComments();
       onComment && onComment();
@@ -163,30 +163,30 @@ export default function GroupDetail() {
     }
     setSubmitting(true);
     try {
-      await api.createTopic(groupId, { userId: currentUser.id, title: newTitle.trim(), content: newContent.trim() });
+      await api.createTopic(groupId, { title: newTitle.trim(), content: newContent.trim() });
       setNewTitle('');
       setNewContent('');
       showToast('发布成功');
       const t = await api.getTopics(groupId);
       setTopics(t);
     } catch (e) {
-      showToast('发布失败', 'error');
+      showToast(e.message || '发布失败', 'error');
     }
     setSubmitting(false);
   };
 
   const handleLike = async (topicId) => {
     try {
-      const updated = await api.likeTopic(topicId, currentUser.id);
+      const updated = await api.likeTopic(topicId);
       setTopics(prev => prev.map(t => t.id === topicId ? updated : t));
     } catch (e) {
-      showToast('操作失败', 'error');
+      showToast(e.message || '操作失败', 'error');
     }
   };
 
   const handleCheckin = async () => {
     try {
-      const res = await api.checkin(groupId, currentUser.id);
+      const res = await api.checkin(groupId);
       if (res.success) {
         showToast('打卡成功！');
         setCheckedInToday(true);
@@ -197,18 +197,18 @@ export default function GroupDetail() {
         showToast(res.message, 'error');
       }
     } catch (e) {
-      showToast('打卡失败', 'error');
+      showToast(e.message || '打卡失败', 'error');
     }
   };
 
   const handleJoin = async () => {
     try {
-      const res = await api.joinGroup(groupId, currentUser.id);
+      const res = await api.joinGroup(groupId);
       showToast(res.message);
       const g = await api.getGroup(groupId);
       setGroup(g);
     } catch (e) {
-      showToast('操作失败', 'error');
+      showToast(e.message || '操作失败', 'error');
     }
   };
 

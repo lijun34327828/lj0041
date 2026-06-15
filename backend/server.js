@@ -1,26 +1,61 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = 8761;
+const JWT_SECRET = 'interest-group-secret-key-2026';
 
 app.use(cors());
 app.use(express.json());
 
+function generateToken(user) {
+  return jwt.sign(
+    { id: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+
+function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: '未登录，请先登录' });
+  }
+  try {
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: '登录已过期，请重新登录' });
+  }
+}
+
+function adminMiddleware(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ error: '无权限执行此操作' });
+  }
+  next();
+}
+
 let nextGroupId = 4;
 let nextTopicId = 11;
 let nextCommentId = 6;
-let nextUserId = 101;
+let nextUserId = 9;
+
+const avatars = ['👨', '👩', '🧑', '👨‍💼', '👩‍💼', '🧑‍💻', '👨‍🎨', '👩‍🔬', '👨‍🍳', '👩‍🎤', '🧑‍🎨', '👨‍🏫', '👩‍💻', '🧑‍✈️'];
 
 const users = [
-  { id: 1, name: '张三', avatar: '👨' },
-  { id: 2, name: '李四', avatar: '👩' },
-  { id: 3, name: '王五', avatar: '🧑' },
-  { id: 4, name: '赵六', avatar: '👨‍💼' },
-  { id: 5, name: '陈七', avatar: '👩‍💼' },
-  { id: 6, name: '周八', avatar: '🧑‍💻' },
-  { id: 7, name: '吴九', avatar: '👨‍🎨' },
-  { id: 8, name: '郑十', avatar: '👩‍🔬' },
+  { id: 1, username: 'admin', name: '管理员', avatar: '👨‍💼', password: bcrypt.hashSync('admin123', 10), role: 'admin' },
+  { id: 2, username: 'lisi', name: '李四', avatar: '👩', password: bcrypt.hashSync('123456', 10), role: 'user' },
+  { id: 3, username: 'wangwu', name: '王五', avatar: '🧑', password: bcrypt.hashSync('123456', 10), role: 'user' },
+  { id: 4, username: 'zhaoliu', name: '赵六', avatar: '👨', password: bcrypt.hashSync('123456', 10), role: 'user' },
+  { id: 5, username: 'chenqi', name: '陈七', avatar: '👩‍💼', password: bcrypt.hashSync('123456', 10), role: 'user' },
+  { id: 6, username: 'zhouba', name: '周八', avatar: '🧑‍💻', password: bcrypt.hashSync('123456', 10), role: 'user' },
+  { id: 7, username: 'wujiu', name: '吴九', avatar: '👨‍🎨', password: bcrypt.hashSync('123456', 10), role: 'user' },
+  { id: 8, username: 'zhengshi', name: '郑十', avatar: '👩‍🔬', password: bcrypt.hashSync('123456', 10), role: 'user' },
 ];
 
 const groups = [
@@ -32,7 +67,7 @@ const groups = [
     cover: '📚',
     color: '#6366f1',
     permission: 'open',
-    members: [1, 2, 3, 4, 5],
+    members: [2, 3, 4, 5, 6],
     createdAt: '2026-01-15',
   },
   {
@@ -43,7 +78,7 @@ const groups = [
     cover: '💪',
     color: '#f43f5e',
     permission: 'open',
-    members: [1, 3, 5, 6, 7, 8],
+    members: [2, 3, 5, 6, 7, 8],
     createdAt: '2026-02-20',
   },
   {
@@ -60,22 +95,22 @@ const groups = [
 ];
 
 const topics = [
-  { id: 1, groupId: 1, userId: 1, title: '读完《百年孤独》第三章的一些感想', content: '马尔克斯的魔幻现实主义真的太震撼了，布恩迪亚家族的命运让人唏嘘...', likes: [2, 3, 4], pinned: true, createdAt: '2026-06-10 09:30', commentCount: 3 },
-  { id: 2, groupId: 1, userId: 2, title: '推荐几本类似风格的拉美文学', content: '大家有没有其他拉美文学作品推荐？', likes: [1, 5], pinned: false, createdAt: '2026-06-12 14:20', commentCount: 2 },
-  { id: 3, groupId: 1, userId: 3, title: '线下读书会报名开始啦', content: '本周五晚7点，一起聊聊书中最打动你的段落~', likes: [1, 2, 4, 5], pinned: true, createdAt: '2026-06-13 10:00', commentCount: 5 },
-  { id: 4, groupId: 2, userId: 1, title: 'Day 30 打卡完成！', content: '坚持一个月了，体脂降了2%，继续加油！', likes: [3, 5, 6, 7, 8], pinned: false, createdAt: '2026-06-14 07:00', commentCount: 4 },
+  { id: 1, groupId: 1, userId: 2, title: '读完《百年孤独》第三章的一些感想', content: '马尔克斯的魔幻现实主义真的太震撼了，布恩迪亚家族的命运让人唏嘘...', likes: [3, 4, 5], pinned: true, createdAt: '2026-06-10 09:30', commentCount: 3 },
+  { id: 2, groupId: 1, userId: 3, title: '推荐几本类似风格的拉美文学', content: '大家有没有其他拉美文学作品推荐？', likes: [2, 5], pinned: false, createdAt: '2026-06-12 14:20', commentCount: 2 },
+  { id: 3, groupId: 1, userId: 4, title: '线下读书会报名开始啦', content: '本周五晚7点，一起聊聊书中最打动你的段落~', likes: [2, 3, 5, 6], pinned: true, createdAt: '2026-06-13 10:00', commentCount: 5 },
+  { id: 4, groupId: 2, userId: 2, title: 'Day 30 打卡完成！', content: '坚持一个月了，体脂降了2%，继续加油！', likes: [3, 5, 6, 7, 8], pinned: false, createdAt: '2026-06-14 07:00', commentCount: 4 },
   { id: 5, groupId: 2, userId: 6, title: '求推荐靠谱的蛋白粉品牌', content: '最近训练量加大，想补充点蛋白质', likes: [7], pinned: false, createdAt: '2026-06-14 12:30', commentCount: 3 },
-  { id: 6, groupId: 2, userId: 7, title: '本周六公园慢跑约起~', content: '早上6点滨江公园，5公里轻松跑', likes: [1, 3, 5, 8], pinned: true, createdAt: '2026-06-13 18:00', commentCount: 2 },
-  { id: 7, groupId: 3, userId: 2, title: '外滩夜景作品分享', content: '昨晚去外滩拍的，大家觉得怎么样？', likes: [4, 6, 8, 1], pinned: true, createdAt: '2026-06-11 22:00', commentCount: 6 },
+  { id: 6, groupId: 2, userId: 7, title: '本周六公园慢跑约起~', content: '早上6点滨江公园，5公里轻松跑', likes: [2, 3, 5, 8], pinned: true, createdAt: '2026-06-13 18:00', commentCount: 2 },
+  { id: 7, groupId: 3, userId: 2, title: '外滩夜景作品分享', content: '昨晚去外滩拍的，大家觉得怎么样？', likes: [4, 6, 8, 3], pinned: true, createdAt: '2026-06-11 22:00', commentCount: 6 },
   { id: 8, groupId: 3, userId: 4, title: '新手求问：夜景如何避免手抖', content: 'ISO已经很高了还是糊...', likes: [2, 6], pinned: false, createdAt: '2026-06-12 15:40', commentCount: 3 },
-  { id: 9, groupId: 3, userId: 6, title: '入手新镜头，开心！', content: '终于入了心心念念的35mm f1.4', likes: [2, 4, 8, 1, 3], pinned: false, createdAt: '2026-06-14 16:20', commentCount: 2 },
-  { id: 10, groupId: 1, userId: 4, title: '马尔克斯的写作风格分析', content: '从叙事结构看魔幻现实主义的魅力...', likes: [1, 2, 3], pinned: false, createdAt: '2026-06-15 08:15', commentCount: 1 },
+  { id: 9, groupId: 3, userId: 6, title: '入手新镜头，开心！', content: '终于入了心心念念的35mm f1.4', likes: [2, 4, 8, 3, 5], pinned: false, createdAt: '2026-06-14 16:20', commentCount: 2 },
+  { id: 10, groupId: 1, userId: 5, title: '马尔克斯的写作风格分析', content: '从叙事结构看魔幻现实主义的魅力...', likes: [2, 3, 4], pinned: false, createdAt: '2026-06-15 08:15', commentCount: 1 },
 ];
 
 const comments = [
-  { id: 1, topicId: 1, userId: 2, content: '同感！尤其是奥雷里亚诺上校的部分', createdAt: '2026-06-10 10:15' },
-  { id: 2, topicId: 1, userId: 3, content: '家族的循环命运真的太有宿命感了', createdAt: '2026-06-10 11:00' },
-  { id: 3, topicId: 1, userId: 4, content: '准备二刷了，第一遍没太看懂', createdAt: '2026-06-10 14:30' },
+  { id: 1, topicId: 1, userId: 3, content: '同感！尤其是奥雷里亚诺上校的部分', createdAt: '2026-06-10 10:15' },
+  { id: 2, topicId: 1, userId: 4, content: '家族的循环命运真的太有宿命感了', createdAt: '2026-06-10 11:00' },
+  { id: 3, topicId: 1, userId: 5, content: '准备二刷了，第一遍没太看懂', createdAt: '2026-06-10 14:30' },
   { id: 4, topicId: 4, userId: 3, content: '太强了！向你学习', createdAt: '2026-06-14 07:30' },
   { id: 5, topicId: 7, userId: 6, content: '构图太棒了！用的什么参数？', createdAt: '2026-06-11 22:30' },
 ];
@@ -100,6 +135,11 @@ const checkins = {};
     }
   });
 })();
+
+function sanitizeUser(user) {
+  const { password, ...safeUser } = user;
+  return safeUser;
+}
 
 function formatDateTime() {
   const now = new Date();
@@ -178,11 +218,57 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', port: PORT, time: formatDateTime() });
 });
 
-app.get('/api/users', (req, res) => {
-  res.json(users);
+app.post('/api/auth/register', (req, res) => {
+  const { username, password, name } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: '用户名和密码不能为空' });
+  }
+  if (username.length < 3) {
+    return res.status(400).json({ error: '用户名至少3个字符' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: '密码至少6个字符' });
+  }
+  if (users.find(u => u.username === username)) {
+    return res.status(400).json({ error: '用户名已存在' });
+  }
+  const newUser = {
+    id: nextUserId++,
+    username,
+    name: name || username,
+    avatar: avatars[Math.floor(Math.random() * avatars.length)],
+    password: bcrypt.hashSync(password, 10),
+    role: 'user',
+  };
+  users.push(newUser);
+  const token = generateToken(newUser);
+  res.json({ token, user: sanitizeUser(newUser) });
 });
 
-app.get('/api/groups', (req, res) => {
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: '用户名和密码不能为空' });
+  }
+  const user = users.find(u => u.username === username);
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    return res.status(400).json({ error: '用户名或密码错误' });
+  }
+  const token = generateToken(user);
+  res.json({ token, user: sanitizeUser(user) });
+});
+
+app.get('/api/auth/me', authMiddleware, (req, res) => {
+  const user = users.find(u => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  res.json(sanitizeUser(user));
+});
+
+app.get('/api/users', authMiddleware, (req, res) => {
+  res.json(users.map(sanitizeUser));
+});
+
+app.get('/api/groups', authMiddleware, (req, res) => {
   const enriched = groups.map(g => ({
     ...g,
     memberCount: g.members.length,
@@ -193,7 +279,7 @@ app.get('/api/groups', (req, res) => {
   res.json(enriched);
 });
 
-app.get('/api/groups/:id', (req, res) => {
+app.get('/api/groups/:id', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
   const group = groups.find(g => g.id === id);
   if (!group) return res.status(404).json({ error: '小组不存在' });
@@ -205,7 +291,7 @@ app.get('/api/groups/:id', (req, res) => {
   });
 });
 
-app.post('/api/groups', (req, res) => {
+app.post('/api/groups', authMiddleware, adminMiddleware, (req, res) => {
   const { name, description, theme, cover, color, permission } = req.body;
   if (!name) return res.status(400).json({ error: '小组名称不能为空' });
   const newGroup = {
@@ -216,7 +302,7 @@ app.post('/api/groups', (req, res) => {
     cover: cover || '🎯',
     color: color || '#6366f1',
     permission: permission || 'open',
-    members: [1],
+    members: [],
     createdAt: formatDate(),
   };
   groups.push(newGroup);
@@ -224,7 +310,7 @@ app.post('/api/groups', (req, res) => {
   res.json(newGroup);
 });
 
-app.put('/api/groups/:id', (req, res) => {
+app.put('/api/groups/:id', authMiddleware, adminMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
   const group = groups.find(g => g.id === id);
   if (!group) return res.status(404).json({ error: '小组不存在' });
@@ -238,12 +324,11 @@ app.put('/api/groups/:id', (req, res) => {
   res.json(group);
 });
 
-app.post('/api/groups/:id/join', (req, res) => {
+app.post('/api/groups/:id/join', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
-  const { userId } = req.body;
+  const userId = req.user.id;
   const group = groups.find(g => g.id === id);
   if (!group) return res.status(404).json({ error: '小组不存在' });
-  if (!userId) return res.status(400).json({ error: '缺少用户ID' });
   if (group.members.includes(userId)) {
     return res.json({ success: true, message: '已经是小组成员', group });
   }
@@ -254,7 +339,7 @@ app.post('/api/groups/:id/join', (req, res) => {
   res.json({ success: true, message: '加入成功', group });
 });
 
-app.get('/api/groups/:id/topics', (req, res) => {
+app.get('/api/groups/:id/topics', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
   let groupTopics = topics.filter(t => t.groupId === id);
   groupTopics.sort((a, b) => {
@@ -264,10 +349,11 @@ app.get('/api/groups/:id/topics', (req, res) => {
   res.json(groupTopics.map(enrichTopic));
 });
 
-app.post('/api/groups/:id/topics', (req, res) => {
+app.post('/api/groups/:id/topics', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
-  const { userId, title, content } = req.body;
-  if (!userId || !title || !content) {
+  const userId = req.user.id;
+  const { title, content } = req.body;
+  if (!title || !content) {
     return res.status(400).json({ error: '缺少必要参数' });
   }
   const newTopic = {
@@ -285,7 +371,7 @@ app.post('/api/groups/:id/topics', (req, res) => {
   res.json(enrichTopic(newTopic));
 });
 
-app.put('/api/topics/:id/pin', (req, res) => {
+app.put('/api/topics/:id/pin', authMiddleware, adminMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
   const { pinned } = req.body;
   const topic = topics.find(t => t.id === id);
@@ -294,12 +380,11 @@ app.put('/api/topics/:id/pin', (req, res) => {
   res.json(enrichTopic(topic));
 });
 
-app.post('/api/topics/:id/like', (req, res) => {
+app.post('/api/topics/:id/like', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
-  const { userId } = req.body;
+  const userId = req.user.id;
   const topic = topics.find(t => t.id === id);
   if (!topic) return res.status(404).json({ error: '话题不存在' });
-  if (!userId) return res.status(400).json({ error: '缺少用户ID' });
   const idx = topic.likes.indexOf(userId);
   if (idx > -1) {
     topic.likes.splice(idx, 1);
@@ -309,16 +394,17 @@ app.post('/api/topics/:id/like', (req, res) => {
   res.json(enrichTopic(topic));
 });
 
-app.get('/api/topics/:id/comments', (req, res) => {
+app.get('/api/topics/:id/comments', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
   const topicComments = comments.filter(c => c.topicId === id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   res.json(topicComments.map(enrichComment));
 });
 
-app.post('/api/topics/:id/comments', (req, res) => {
+app.post('/api/topics/:id/comments', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
-  const { userId, content } = req.body;
-  if (!userId || !content) {
+  const userId = req.user.id;
+  const { content } = req.body;
+  if (!content) {
     return res.status(400).json({ error: '缺少必要参数' });
   }
   const newComment = {
@@ -334,15 +420,14 @@ app.post('/api/topics/:id/comments', (req, res) => {
   res.json(enrichComment(newComment));
 });
 
-app.get('/api/groups/:id/checkins', (req, res) => {
+app.get('/api/groups/:id/checkins', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
   res.json(checkins[id] || {});
 });
 
-app.post('/api/groups/:id/checkin', (req, res) => {
+app.post('/api/groups/:id/checkin', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
-  const { userId } = req.body;
-  if (!userId) return res.status(400).json({ error: '缺少用户ID' });
+  const userId = req.user.id;
   const today = formatDate();
   if (!checkins[id]) checkins[id] = {};
   if (!checkins[id][today]) checkins[id][today] = [];
@@ -353,7 +438,7 @@ app.post('/api/groups/:id/checkin', (req, res) => {
   res.json({ success: true, message: '打卡成功', checkins: checkins[id], todayCount: checkins[id][today].length });
 });
 
-app.get('/api/groups/:id/checkin-stats', (req, res) => {
+app.get('/api/groups/:id/checkin-stats', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
   const data = checkins[id] || {};
   const totalDays = Object.keys(data).length;
@@ -373,7 +458,7 @@ app.get('/api/groups/:id/checkin-stats', (req, res) => {
   res.json({ totalDays, totalCheckins, streak, data });
 });
 
-app.get('/api/ranking/activity', (req, res) => {
+app.get('/api/ranking/activity', authMiddleware, adminMiddleware, (req, res) => {
   const ranking = groups.map(g => ({
     id: g.id,
     name: g.name,
