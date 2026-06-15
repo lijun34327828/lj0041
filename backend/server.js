@@ -163,7 +163,8 @@ function formatDate() {
 }
 
 function getUserById(id) {
-  return users.find(u => u.id === id) || { id, name: '用户' + id, avatar: '👤' };
+  const user = users.find(u => u.id === id);
+  return user ? sanitizeUser(user) : { id, name: '用户' + id, avatar: '👤' };
 }
 
 function enrichTopic(topic) {
